@@ -5,23 +5,25 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const connection = require("./connection");
 const index = require("./routes/routes");
-const https = require("https");
-const fs = require("fs");
-const config = require("./config"); // Import config.js
+const config = require("./config");
 
 const app = express();
 
 // ================== CORS Configuration ================== //
-// Use origins from config.js
+
+// Add localhost automatically in development
 const allowedOrigins = [
-  // Origins from config file (for environment based control)
   ...config.corsOrigins,
 
-  // Additional origins not in config.js but you had previously (kept them)
+  // Always allow localhost for dev
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+
+  // Your existing domains
   "https://nabnee-backend.onrender.com",
   "https://admin.nabnee.com",
-
-  // Network/IP access
   "http://45.63.20.179",
   "https://45.63.20.179",
 
@@ -32,16 +34,17 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Allow non-browser requests
-    
+    // Allow server-to-server or Postman requests
+    if (!origin) return callback(null, true);
+
     const isAllowed = allowedOrigins.some(allowed => {
       return typeof allowed === "string" ? origin === allowed : allowed.test(origin);
     });
-    
+
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.error(`CORS blocked for origin: ${origin}`);
+      console.error(`❌ CORS blocked for origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -60,7 +63,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Handle preflight OPTIONS
+app.options("*", cors(corsOptions)); // Handle preflight requests
 
 // ================== Middleware ================== //
 app.use(bodyParser.json({ limit: "50mb" }));
@@ -88,7 +91,7 @@ app.use((err, req, res, next) => {
 const PORT = config.port || process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`
-  Server running in ${process.env.NODE_ENV || "development"} mode
+  🚀 Server running in ${process.env.NODE_ENV || "development"} mode
   Backend URL: http://localhost:${PORT}
   API Docs: http://localhost:${PORT}/api-docs
   `);
