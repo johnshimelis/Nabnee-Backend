@@ -1,14 +1,13 @@
-// This file contains MongoDB and other connection configuration for different environments
-// Usage: require this file in your application to get the correct configuration for the current environment
-
+// config.js
 const environment = process.env.NODE_ENV || 'development';
 
-// Default configuration
 const config = {
   development: {
     mongoURI: 'mongodb://localhost:27017/nabnee',
     port: 3001,
     corsOrigins: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
       "http://localhost:8080", 
       "http://localhost:8081", 
       "http://127.0.0.1:8080", 
