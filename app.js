@@ -1,56 +1,61 @@
 require("dotenv").config();
-let express = require("express");
-let path = require("path");
-let bodyParser = require("body-parser");
-let cors = require("cors");
-let connection = require("./connection");
-let index = require("./routes/routes");
-let https = require("https");
-let fs = require("fs");
-let app = express();
+const express = require("express");
+const path = require("path");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const connection = require("./connection");
+const index = require("./routes/routes");
+const https = require("https");
+const fs = require("fs");
 
-// Define CORS configuration options
+const app = express();
+
+// ================== CORS Configuration ================== //
+const allowedOrigins = [
+  // Development
+  "http://localhost:5173",  // Vite frontend
+  "http://127.0.0.1:5173",
+  
+  // Production (your live frontends)
+  "https://nabnee.com",
+  "https://www.nabnee.com",
+  "http://nabnee.com",
+  "http://www.nabnee.com",
+  
+  // Backend/Admin
+  "https://nabnee-backend.onrender.com",
+  "https://admin.nabnee.com",
+  
+  // Network/IP access
+  "http://45.63.20.179",
+  "https://45.63.20.179",
+  
+  // Ngrok tunnels (for testing)
+  /https?:\/\/.*\.ngrok\.io$/,
+  /https?:\/\/.*\.ngrok-free\.app$/
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = [
-      "http://localhost:8080",
-      "http://localhost:8081",
-      "http://127.0.0.1:8080",
-      "http://127.0.0.1:8081",
-      "https://localhost:8080",
-      "https://localhost:8081",
-      "https://127.0.0.1:8080",
-      "https://127.0.0.1:8081",
-      "http://localhost:5173",
-      "http://nabnee.com",
-      "https://nabnee.com",
-      "http://www.nabnee.com",
-      "https://www.nabnee.com",
-      "https://admin.nabnee.com",
-      "http://45.63.20.179",
-      "https://45.63.20.179",
-    ];
-
-    // Allow requests with no origin (like mobile apps, curl requests)
+    // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
-
-    // Check against allowed origins
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else if (
-      origin &&
-      // Allow ngrok HTTPS domains (these are dynamic)
-      (/https:\/\/.*\.ngrok\.io$/.test(origin) ||
-        // Allow ngrok-free domains (newer format)
-        /https:\/\/.*\.ngrok-free\.app$/.test(origin))
-    ) {
+    
+    // Check if origin is in allowedOrigins or matches a regex pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      return typeof allowed === 'string' 
+        ? origin === allowed
+        : allowed.test(origin);
+    });
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error("CORS not allowed for this origin"));
+      console.error(`CORS blocked for origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [
     "Origin",
     "X-Requested-With",
@@ -58,43 +63,49 @@ const corsOptions = {
     "Accept",
     "Authorization",
     "x-api-key",
-    "_id",
+    "_id"
   ],
+  exposedHeaders: ["x-auth-token"] // Optional: Expose custom headers
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Add a middleware to handle preflight requests with the same CORS options
+// Explicitly handle OPTIONS requests for all routes
 app.options("*", cors(corsOptions));
 
-// view engine setup
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "ejs");
-app.use("/img_directory", express.static("img_directory"));
-
-// Increase header size limits to prevent 431 errors
+// ================== Middleware ================== //
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
+
+// Static files
+app.use("/img_directory", express.static("img_directory"));
 app.use("/assets", express.static("assets"));
 app.use("/images", express.static(path.join(__dirname, "public")));
 
+// ================== Routes ================== //
 app.use("/", index);
 
-// catch 404 and forward to error handler
+// ================== Error Handling ================== //
+// 404 Handler
 app.use((req, res, next) => {
-  let err = new Error("Not Found");
-  err.status = 404;
-  next(err);
+  res.status(404).json({ error: "Endpoint not found" });
 });
 
-// error handler
+// Global error handler
 app.use((err, req, res, next) => {
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
-  res.status(err.status || 500);
+  console.error(err.stack);
+  res.status(500).json({ error: "Internal server error" });
 });
 
+// ================== Server Start ================== //
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`
+  Server running in ${process.env.NODE_ENV || "development"} mode
+  Backend URL: http://localhost:${PORT}
+  API Docs: http://localhost:${PORT}/api-docs
+  `);
+});
+
 module.exports = app;
