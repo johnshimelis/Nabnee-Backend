@@ -1,0 +1,8 @@
+{
+  "execMap": {
+    "js": "node"
+  },
+  "exec": "node kill-process.js && node app.js",
+  "script": "app.js",
+  "crash": "sh -c 'lsof -i :${PORT:-4000} -t | xargs kill'"
+}
